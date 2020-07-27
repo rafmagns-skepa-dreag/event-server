@@ -14,4 +14,5 @@ serde = "1.0.111"
 log = "0.4.8"
 env_logger = "0.7"
 dotenv = "0.15.0"
+influx_db_client = "^0.4.0"
 
