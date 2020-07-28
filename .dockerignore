@@ -1,0 +1,7 @@
+*venv*/**
+.git/**
+.venv
+venv/
+__pypackages__/
+__pycache__/
+rust/
