@@ -1,4 +1,4 @@
-FROM python:3.8.4 as python-base
+FROM python:3.8 as python-base
 
     # python
 ENV PYTHONUNBUFFERED=1 \
@@ -25,16 +25,13 @@ ENV PYTHONUNBUFFERED=1 \
 # prepend poetry and venv to path
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
-
-# `builder-base` stage is used to build deps + create our virtual environment
-FROM python-base as builder-base
-#RUN apk add curl
+#RUN apk add --no-cache curl g++ make build-utils
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         # deps for installing poetry
         curl \
         # deps for building python deps
-        build-essential
+        build-essential net-tools
 
 # install poetry - respects $POETRY_VERSION & $POETRY_HOME
 RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
@@ -44,27 +41,22 @@ WORKDIR /app
 COPY poetry.lock pyproject.toml ./
 
 RUN poetry install --no-dev
+RUN rm -rf ~/.cache
+
 
 # `development` image is used during development / testing
 FROM python-base as development
 ENV FASTAPI_ENV=development
-WORKDIR /app
-
-# copy in our built poetry + venv
-COPY --from=builder-base $POETRY_HOME $POETRY_HOME
-COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
-
 # quicker install as runtime deps are already installed
 RUN poetry install
-
+COPY . .
 EXPOSE 8000
-CMD ["uvicorn", "--reload", "server:app"]
+CMD ["uvicorn", "--host", "0.0.0.0", "main:app"]
 
 
 # `production` image used for runtime
 FROM python-base as production
 ENV FASTAPI_ENV=production
-COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
-COPY ./app /app/
+COPY . .
 WORKDIR /app
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "server:app"]
+CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "main:app"]
